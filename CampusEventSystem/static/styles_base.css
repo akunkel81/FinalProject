@@ -1,0 +1,23 @@
+/* Home Page Styles */
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 20px 0;
+}
+
+header h1 {
+    font-size: 24px;
+}
+
+.events {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.event {
+    background-color: #fff;
+    padding: 10px;
+    margin: 10px;
+    border-radius: 8px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}

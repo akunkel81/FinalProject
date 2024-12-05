@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<h1>Upcoming Events</h1>
+
+<form method="POST" action="{{ url_for('search') }}">
+    <input type="text" name="keyword" placeholder="Search by title or tags..." required>
+    <button type="submit">Search</button>
+</form>
+
+<div class="event-container">
+    {% for event in events %}
+    <div class="event-card">
+        <div class="event-details">
+           <img src="{{ url_for('static', filename=event.image_url) }}" alt="{{ event.title }}">
+            <h2><a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a></h2>
+            <p><strong>Type:</strong> {{ event.type }}</p>
+            <p><strong>Date:</strong> {{ event.date }}</p>
+            <p><strong>Location:</strong> {{ event.location }}</p>
+            {% if event.tags %}
+                <p><strong>Tags:</strong> {{ event.tags }}</p>
+            {% endif %}
+            <form method="POST" action="{{ url_for('signup', event_id=event.id) }}">
+                <button type="submit">Sign Up</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+        <p>No upcoming events found.</p>
+    {% endfor %}
+</div>
+{% endblock %}

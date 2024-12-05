@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Event Details{% endblock %}
+
+{% block content %}
+<h1>{{ event['title'] }}</h1>
+    <img src="{{ url_for('static', filename=event.image_url) }}" alt="{{ event.title }}">
+    <p><strong>Type:</strong> {{ event['type'] }}</p>
+    <p><strong>Date:</strong> {{ event['date'] }}</p>
+    <p><strong>Time:</strong> {{ event['time'] }}</p>
+    <p><strong>Location:</strong> {{ event['location'] }}</p>
+    <p><strong>Description:</strong> {{ event['description'] }}</p>
+
+<h2>Attendees: {{ attendees }}</h2>
+
+{% if session['user_id'] %}
+    {% if is_registered %}
+        <form method="POST" action="{{ url_for('cancel_signup', event_id=event['id']) }}">
+            <button type="submit">Cancel Signup</button>
+        </form>
+    {% else %}
+        <form method="POST" action="{{ url_for('signup', event_id=event['id']) }}">
+            <button type="submit">Sign Up</button>
+        </form>
+    {% endif %}
+{% else %}
+    <p><a href="{{ url_for('login') }}">Log in</a> to sign up for this event.</p>
+{% endif %}
+{% endblock %}

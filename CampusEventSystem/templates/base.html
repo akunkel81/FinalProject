@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Campus Event System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+</head>
+<body>
+    <header>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('home') }}">Home</a></li>
+
+            {% if 'user_id' in session %}
+                <li><a href="{{ url_for('profile') }}">Profile</a></li>
+                {% if session.get('role') == 'event_manager' %}
+                    <li><a href="{{ url_for('manager_dashboard') }}">Manager Dashboard</a></li>
+                {% endif %}
+                <li><a href="{{ url_for('logout') }}">Logout</a></li>
+            {% else %}
+                <li><a href="{{ url_for('login') }}">Login</a></li>
+                <li><a href="{{ url_for('register') }}">Register</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    </header>
+
+    <main>
+        <!-- Event List Section for All Pages -->
+        <div class="event-list">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer>
+        <p> &copy; 2024 Campus Event System</p>
+    </footer>
+</body>
+</html>

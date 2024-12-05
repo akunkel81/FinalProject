@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Dashboard{% endblock %}
+
+{% block content %}
+<h1>Manager Dashboard</h1>
+
+<a href="{{ url_for('create_event') }}" class="btn btn-primary">Create New Event</a>
+
+<h2>Your Upcoming Events</h2>
+<ul>
+    {% for event in upcoming_events %}
+        <li>
+            <a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a>
+            on {{ event.date }}
+            <a href="{{ url_for('edit_event', event_id=event.id) }}" class="btn btn-secondary">Edit</a>
+            <form method="POST" action="{{ url_for('cancel_event', event_id=event.id) }}" style="display: inline;">
+                <button type="submit" class="btn btn-danger">Cancel</button>
+            </form>
+        </li>
+    {% else %}
+        <p>No upcoming events found.</p>
+    {% endfor %}
+</ul>
+
+<h2>Your Past Events</h2>
+<ul>
+    {% for event in past_events %}
+        <li>
+            <a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a> on {{ event.date }}
+        </li>
+    {% else %}
+        <p>No past events found.</p>
+    {% endfor %}
+</ul>
+{% endblock %}

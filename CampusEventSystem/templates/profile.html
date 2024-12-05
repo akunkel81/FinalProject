@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<h1>Your Profile</h1>
+
+<p>Welcome, {{ session.get('role', 'user') }}</p>
+
+<!-- Links for Event Managers -->
+{% if session.get('role') == 'event_manager' %}
+    <a href="{{ url_for('manager_dashboard') }}" class="btn btn-primary">Manager Dashboard</a>
+{% endif %}
+
+<!-- Upcoming events the user is signed up for -->
+<h3>Events You're Signed Up For:</h3>
+<ul>
+    {% for event in upcoming_events %}
+        <li>
+            <a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a> on {{ event.date }}
+        </li>
+    {% else %}
+        <p>You are not signed up for any events.</p>
+    {% endfor %}
+</ul>
+
+<!-- All upcoming events -->
+<h3>All Upcoming Events:</h3>
+<ul>
+    {% for event in all_upcoming_events %}
+        <li>
+            <a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a> on {{ event.date }}
+        </li>
+    {% else %}
+        <p>No upcoming events found.</p>
+    {% endfor %}
+</ul>
+{% endblock %}
