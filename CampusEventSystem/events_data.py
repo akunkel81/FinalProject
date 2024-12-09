@@ -1,26 +1,38 @@
 from datetime import datetime
 import sqlite3
+from werkzeug.utils import secure_filename
+import os
 
 
-def insert_events(events):
+def insert_events(events, upload_folder):
     conn = sqlite3.connect('event_management.db')
     cursor = conn.cursor()
 
     for event in events:
         # Check if the event already exists by title and date
         cursor.execute('''
-            SELECT COUNT(*) FROM events WHERE title = ? AND date = ?''',
-                       (event['title'], event['date']))
+            SELECT COUNT(*) FROM events WHERE title = ? AND date = ?
+        ''', (event['title'], event['date']))
         event_exists = cursor.fetchone()[0] > 0
 
         if not event_exists:
-            # Insert the event if it doesn't already exist
+            # Handle the image upload (if exists)
+            image_url = None
+            image = event.get('image_url')
+            if image:
+                image_filename = secure_filename(image)
+                image_path = os.path.join(upload_folder, image_filename)
+                image_url = f'uploads/{image_filename}'  # Store relative path to the static folder
+
+            organizer = event.get('organizer', 'Default Organizer')  # Default organizer
             organizer_id = event.get('organizer_id', 1)  # Default organizer_id
+
             cursor.execute('''
-                INSERT INTO events (title, type, tags, organizer_id, date, time, location, description, image_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', (
-                event['title'], event['type'], event['tags'], organizer_id, event['date'],
-                event['time'], event['location'], event['description'], event['image_url']
+                INSERT INTO events (title, type, tags, organizer, organizer_id, date, time, location, description, image_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                event['title'], event['type'], event['tags'], organizer, organizer_id,
+                event['date'], event['time'], event['location'], event['description'], image_url
             ))
 
     conn.commit()
@@ -39,7 +51,7 @@ events = [
         'time': '09:00:00',
         'location': 'University of Pittsburgh - William Pitt Union',
         'description': 'A career fair for University of Pittsburgh students to connect with top employers.',
-        'image_url': 'static/uploads/pitt_career_fair.png'  # New image URL
+        'image_url': 'pitt_career_fair.png'  # Simplified image URL
      },
      {
         'id': 2,
@@ -52,7 +64,7 @@ events = [
         'time': '18:00:00',
         'location': 'University of Pittsburgh - Cathedral of Learning',
         'description': 'An evening showcasing the best of Pitt student talent in music, theater, and visual arts.',
-        'image_url': 'static/uploads/pitt_arts_showcase.jpg'  # New image URL
+        'image_url': 'pitt_arts_showcase.jpg'  # Simplified image URL
     },
     {
         'id': 3,
@@ -65,44 +77,27 @@ events = [
         'time': '12:00:00',
         'location': 'University of Pittsburgh - Oakland Campus',
         'description': 'A festive celebration for Pitt alumni, students, and families.',
-        'image_url': 'static/uploads/pitt_homecoming.jpg'  # New image URL
+        'image_url': 'pitt_homecoming.jpg'  # Simplified image URL
     },
         # Add more University of Pittsburgh-related events here
 ]
 
-insert_events(events)
 
-
-def get_upcoming_events():
+def get_upcoming_events(filters=None):
     current_date = datetime.now().strftime('%Y-%m-%d')
-    upcoming_events = [event for event in events if event['date'] >= current_date]
-    return upcoming_events
 
-def create_events_table():
-    conn = sqlite3.connect('event_management.db')
-    cursor = conn.cursor()
+    # Initial list of upcoming events
+    filtered_events = [event for event in events if event['date'] >= current_date]
 
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        type TEXT NOT NULL,
-        tags TEXT,
-        organizer_id INTEGER,
-        organizer TEXT,
-        date TEXT NOT NULL,
-        time TEXT,
-        location TEXT NOT NULL,
-        description TEXT,
-        image_url TEXT,
-        FOREIGN KEY (organizer_id) REFERENCES users(id)
-    );
-    ''')
+    # Apply filters
+    if filters:
+        if 'type' in filters and filters['type']:
+            filtered_events = [event for event in filtered_events if event['type'] == filters['type']]
+        if 'location' in filters and filters['location']:
+            filtered_events = [event for event in filtered_events if
+                               filters['location'].lower() in event['location'].lower()]
+        if 'date' in filters and filters['date']:
+            filtered_events = [event for event in filtered_events if event['date'] == filters['date']]
 
-    conn.commit()
-    conn.close()
-
-# Create the 'events' table
-create_events_table()
-
+    return filtered_events
 

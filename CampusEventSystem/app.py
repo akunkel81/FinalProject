@@ -2,17 +2,22 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_bcrypt import Bcrypt
 from sqlite3 import IntegrityError
 from database import init_db, query_db, execute_db
-from events_data import events, get_upcoming_events
+from events_data import events, insert_events, get_upcoming_events
 import os
+from datetime import datetime
+
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
+import sqlite3
 
 app = Flask(__name__)
 app.secret_key = 'campuseventsystem'
 bcrypt = Bcrypt(app)
 
-DATABASE = 'event_management.db'  # File in the same folder as app.py
+DATABASE = 'event_management.db'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///event_management.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Optional, disables unnecessary tracking
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 @app.cli.command('init-db')
 def init_db_command():
@@ -23,16 +28,58 @@ def init_db_command():
 if __name__ == "__main__":
     app.run(debug=True)
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def home():
-    # Fetch all upcoming events, sorted by date
-    events = query_db("SELECT * FROM events WHERE date >= DATE('now') ORDER BY date")
+    rows = query_db("SELECT * FROM events")
+    events = [dict(row) for row in rows]
 
-    return render_template('index.html', events=events)
+    # Get the current date and time
+    current_datetime = datetime.now()
+    current_date = current_datetime.strftime('%Y-%m-%d')
+    current_time = current_datetime.strftime('%H:%M:%S')
+
+    upcoming_events = []
+    for event in events:
+        event_date = datetime.strptime(event['date'], "%Y-%m-%d")
+        try:
+            event_time = datetime.strptime(event['time'], "%H:%M").time()  # Adjusted format
+        except ValueError:
+            event_time = datetime.min.time()  # Default to midnight if time is invalid or missing
+
+        event_datetime = datetime.combine(event_date, event_time)
+        if event_datetime >= current_datetime:
+            upcoming_events.append(event)
+
+    filtered_events = events
+    filter_criteria = {}
+    if request.method == 'POST':
+        filter_criteria['type'] = request.form.get('type')
+        filter_criteria['location'] = request.form.get('location')
+        filter_criteria['date'] = request.form.get('date')
+
+        if filter_criteria['type']:
+            filtered_events = [event for event in filtered_events if event['type'] == filter_criteria['type']]
+        if filter_criteria['location']:
+            filtered_events = [event for event in filtered_events if filter_criteria['location'].lower() in event['location'].lower()]
+        if filter_criteria['date']:
+            filtered_events = [event for event in filtered_events if event['date'] == filter_criteria['date']]
+
+        upcoming_events = [event for event in filtered_events if datetime.strptime(event['date'], "%Y-%m-%d") >= current_datetime]
+
+    return render_template(
+        'index.html',
+        upcoming_events=upcoming_events,
+        all_events=filtered_events,
+        current_date=current_date,
+        current_time=current_time,
+        filter_criteria=filter_criteria
+    )
+
+
+
 
 @app.route('/')
 def index():
-    # Exclude specific event dynamically
     filtered_events = [event for event in events if event['title'] != 'Event 1']
 
     for event in filtered_events:
@@ -42,25 +89,58 @@ def index():
 
 @app.route('/search', methods=['POST'])
 def search():
-    keyword = request.form['keyword']
+    keyword = request.form.get('keyword', '')
+    filter_criteria = {
+        'type': request.form.get('type', ''),
+        'location': request.form.get('location', ''),
+        'date': request.form.get('date', ''),
+    }
 
-    # Search by title or tags, case-insensitive
-    filtered_events = query_db("""
-        SELECT * FROM events
-        WHERE title LIKE ? OR tags LIKE ?
-        AND date >= DATE('now')
-    """, ('%' + keyword + '%', '%' + keyword + '%'))
+    query = "SELECT * FROM events WHERE (title LIKE ? OR tags LIKE ?)"
+    params = [f"%{keyword}%", f"%{keyword}%"]
 
-    return render_template('index.html', events=filtered_events)
+    if filter_criteria['type']:
+        query += " AND type = ?"
+        params.append(filter_criteria['type'])
+
+    if filter_criteria['location']:
+        query += " AND location LIKE ?"
+        params.append(f"%{filter_criteria['location']}%")
+
+    if filter_criteria['date']:
+        query += " AND date = ?"
+        params.append(filter_criteria['date'])
+
+    rows = query_db(query, params)
+    events = [dict(row) for row in rows]
 
 
-@app.route('/event/<int:event_id>')
-def event_detail(event_id):
-    event = query_db("SELECT * FROM events WHERE id = ?", (event_id,), one=True)
-    attendees = query_db("SELECT COUNT(*) as count FROM signups WHERE event_id = ?", (event_id,), one=True)
-    is_registered = query_db("SELECT * FROM signups WHERE user_id = ? AND event_id = ?",
-                             (session.get('user_id'), event_id), one=True)
-    return render_template('event_detail.html', event=event, attendees=attendees['count'], is_registered=bool(is_registered))
+    current_datetime = datetime.now()
+    current_date = current_datetime.strftime('%Y-%m-%d')
+    current_time = current_datetime.strftime('%H:%M:%S')
+
+    upcoming_events = []
+    for event in events:
+        event_date = datetime.strptime(event['date'], "%Y-%m-%d")
+        try:
+            event_time = datetime.strptime(event['time'], "%H:%M").time()
+        except ValueError:
+            event_time = datetime.min.time()
+
+        event_datetime = datetime.combine(event_date, event_time)
+        if event_datetime >= current_datetime:
+            upcoming_events.append(event)
+
+    return render_template(
+        'index.html',
+        upcoming_events=upcoming_events,
+        all_events=events,
+        current_date=current_date,
+        current_time=current_time,
+        filter_criteria=filter_criteria
+    )
+
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -68,13 +148,12 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        role = request.form['role']  # Get the selected role (user or admin)
+        role = request.form['role']
 
-        # Hash the password using bcrypt
+
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
         try:
-            # Insert the new user into the database
             execute_db('''
                 INSERT INTO users (username, email, password, role)
                 VALUES (?, ?, ?, ?)''', (username, email, hashed_password, role))
@@ -92,24 +171,117 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        user = query_db("SELECT * FROM users WHERE username = ?", (username,), one=True)
-        if user and bcrypt.check_password_hash(user['password'], password):
-            session['user_id'] = user['id']
-            session['role'] = user['role']  # Ensure this is 'event_manager' for managers
-            flash('Login successful!', 'success')
-            return redirect(url_for('profile'))
-        else:
-            flash('Invalid username or password', 'danger')
+
+        user = query_db("SELECT * FROM users WHERE username = ?", [username], one=True)
+
+        if user:
+            try:
+                if bcrypt.check_password_hash(user['password'], password):
+                    session['user_id'] = user['id']
+                    session['role'] = user['role']  # Ensure this is 'event_manager' for managers
+                    session['username'] = user['username']  # Set username in the session
+                    flash('Login successful!', 'success')
+                    return redirect(url_for('profile'))
+            except ValueError:
+                flash('Corrupted password detected. Please reset your password.', 'danger')
+                return redirect(url_for('login'))
+
+        flash('Invalid username or password', 'danger')
 
     return render_template('login.html')
 
 
 
+
+@app.route('/rehash_passwords')
+def rehash_passwords():
+    # Fetch all users from the database
+    users = query_db("SELECT * FROM users")
+
+    for user in users:
+        try:
+            bcrypt.check_password_hash(user['password'], 'dummy_password')
+        except (ValueError, TypeError):
+            # Rehash plaintext or corrupted password
+            plaintext_password = user['password']  # Assuming plaintext was stored for rehashing
+            new_hash = bcrypt.generate_password_hash(plaintext_password).decode('utf-8')
+            # Update the password in the database
+            execute_db("UPDATE users SET password = ? WHERE id = ?", (new_hash, user['id']))
+
+    flash('All passwords have been successfully rehashed.', 'success')
+    return redirect(url_for('home'))
+
+
 @app.route('/logout')
 def logout():
     session.clear()
-    flash('Logged out successfully.')
-    return redirect(url_for('index'))
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('home'))
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    if 'user_id' not in session:
+        flash('You need to be logged in to access this page.', 'danger')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    user = query_db("SELECT * FROM users WHERE id = ?", [user_id], one=True)
+
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        if password and password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return redirect(url_for('settings'))
+
+
+        existing_user = query_db("SELECT * FROM users WHERE username = ?", [username], one=True)
+        if existing_user and existing_user['id'] != user_id:
+            flash('Username is already taken. Please choose another one.', 'danger')
+            return redirect(url_for('settings'))
+
+
+        existing_email = query_db("SELECT * FROM users WHERE email = ?", [email], one=True)
+        if existing_email and existing_email['id'] != user_id:
+            flash('Email is already in use. Please choose another one.', 'danger')
+            return redirect(url_for('settings'))
+
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8') if password else None
+
+        try:
+            if hashed_password:
+                execute_db(
+                    '''
+                    UPDATE users
+                    SET username = ?, email = ?, password = ?
+                    WHERE id = ?
+                    ''',
+                    (username, email, hashed_password, user_id)
+                )
+            else:
+                execute_db(
+                    '''
+                    UPDATE users
+                    SET username = ?, email = ?
+                    WHERE id = ?
+                    ''',
+                    (username, email, user_id)
+                )
+
+            session['username'] = username
+
+            flash('Your changes have been saved successfully!', 'success')
+            return redirect(url_for('settings'))
+
+        except Exception as e:
+            flash(f"An error occurred: {e}", 'danger')
+            return redirect(url_for('settings'))
+
+    return render_template('settings.html', user=user)
+
 
 
 @app.route('/profile')
@@ -120,25 +292,28 @@ def profile():
 
     user_id = session['user_id']
 
-    # Query the events the user is signed up for
     upcoming_events = query_db(
         "SELECT * FROM events WHERE id IN (SELECT event_id FROM signups WHERE user_id = ?) AND date >= DATE('now')",
         (user_id,)
     )
 
-    # Query all upcoming events
     all_upcoming_events = query_db(
         "SELECT * FROM events WHERE date >= DATE('now') ORDER BY date"
     )
 
     return render_template('profile.html', upcoming_events=upcoming_events, all_upcoming_events=all_upcoming_events)
 
+
 UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}  # Allowed image file extensions
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+
+
+insert_events(events, UPLOAD_FOLDER)
+
 
 @app.route('/manager/dashboard')
 def manager_dashboard():
@@ -148,7 +323,6 @@ def manager_dashboard():
 
     user_id = session['user_id']
 
-    # Fetch upcoming and past events managed by the logged-in user
     upcoming_events = query_db(
         "SELECT * FROM events WHERE organizer_id = ? AND date >= DATE('now') ORDER BY date",
         (user_id,)
@@ -160,6 +334,71 @@ def manager_dashboard():
 
     return render_template('manager_dashboard.html', upcoming_events=upcoming_events, past_events=past_events)
 
+@app.route('/manager/batch_cancel_events', methods=['POST'])
+def batch_cancel_events():
+    if 'user_id' not in session or session.get('role') != 'event_manager':
+        flash('Access denied. Only event managers can perform this action.', 'danger')
+        return redirect(url_for('profile'))
+
+    event_ids = request.form.getlist('event_ids')  # Get the list of selected event IDs
+
+    if not event_ids:
+        flash('No events selected for cancellation.', 'danger')
+        return redirect(url_for('manager_dashboard'))
+
+    try:
+        # Using a transaction to delete multiple events at once
+        execute_db("DELETE FROM events WHERE id IN ({})".format(','.join('?' * len(event_ids))), event_ids)
+        flash('Selected events have been cancelled successfully.', 'success')
+    except Exception as e:
+        flash(f"An error occurred while canceling events: {e}", 'danger')
+
+    return redirect(url_for('manager_dashboard'))
+
+
+@app.route('/event/<int:event_id>')
+def event_detail(event_id):
+    event = query_db("SELECT * FROM events WHERE id = ?", [event_id], one=True)
+
+    if not event:
+        flash('Event not found.', 'danger')
+        return redirect(url_for('home'))
+
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    current_time = datetime.now().strftime('%H:%M:%S')
+
+    is_registered = False
+    if 'user_id' in session:
+        user_id = session['user_id']
+        signup = query_db("SELECT * FROM signups WHERE user_id = ? AND event_id = ?", [user_id, event_id], one=True)
+        is_registered = signup is not None
+
+    # Count attendees
+    attendees_count = query_db("SELECT COUNT(*) AS count FROM signups WHERE event_id = ?", [event_id], one=True)[
+        'count']
+
+
+    attendees = query_db("""
+        SELECT users.username, users.email 
+        FROM signups 
+        JOIN users ON signups.user_id = users.id 
+        WHERE signups.event_id = ?
+    """, [event_id])
+
+    is_event_manager = session.get('role') == 'event_manager' and event['organizer_id'] == session['user_id']
+
+    return render_template(
+        'event_detail.html',
+        event=event,
+        current_date=current_date,
+        current_time=current_time,
+        is_registered=is_registered,
+        attendees=attendees,
+        attendees_count=attendees_count,
+        is_event_manager=is_event_manager
+    )
+
+
 @app.route('/manager/create_event', methods=['GET', 'POST'])
 def create_event():
     if 'user_id' not in session or session.get('role') != 'event_manager':
@@ -170,33 +409,36 @@ def create_event():
         title = request.form['title']
         event_type = request.form['type']
         date = request.form['date']
-        time = request.form['time']  # Get the time from the form
+        time = request.form['time']
         location = request.form['location']
         description = request.form['description']
-        tags = request.form.get('tags', '')  # Get tags from form, default to empty string if not provided
+        tags = request.form.get('tags')
+        organizer = session['username']
+
         organizer_id = session['user_id']
 
-        # Handle image upload
+
         image = request.files.get('image')
         image_url = None
         if image and allowed_file(image.filename):
             image_filename = secure_filename(image.filename)
             image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
             image.save(image_path)
-            image_url = f'uploads/{image_filename}'  # Relative path for static folder
+            image_url = f'uploads/{image_filename}'
 
-        # Insert the event into the database, ensuring 'time' is passed
-        execute_db('''
-            INSERT INTO events (title, type, tags, organizer_id, date, time, location, description, image_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-            (title, event_type, tags, organizer_id, date, time, location, description, image_url)
+
+        execute_db(
+            '''
+            INSERT INTO events (title, type, tags, organizer_id, organizer, date, time, location, description, image_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (title, event_type, tags, organizer_id, organizer, date, time, location, description, image_url)
         )
 
         flash('Event created successfully!', 'success')
         return redirect(url_for('manager_dashboard'))
 
     return render_template('create_event.html')
-
 
 
 
@@ -222,39 +464,45 @@ def manage_event(event_id):
 @app.route('/manager/event/<int:event_id>/edit', methods=['GET', 'POST'])
 def edit_event(event_id):
     if 'user_id' not in session or session.get('role') != 'event_manager':
-        flash('Access denied.', 'danger')
-        return redirect(url_for('index'))
+        flash('Access denied. Only event managers can edit events.', 'danger')
+        return redirect(url_for('home'))
 
     user_id = session['user_id']
-
-    # Fetch the event by ID and ensure the manager owns it
-    event = query_db(
-        "SELECT * FROM events WHERE id = ? AND organizer_id = ?",
-        (event_id, user_id),
-        one=True
-    )
+    event = query_db("SELECT * FROM events WHERE id = ?", [event_id], one=True)
 
     if not event:
-        flash('Event not found or you do not have permission to edit it.', 'danger')
+        flash('Event not found.', 'danger')
+        return redirect(url_for('manager_dashboard'))
+
+    if event['organizer_id'] != user_id:
+        flash('You do not have permission to edit this event.', 'danger')
         return redirect(url_for('manager_dashboard'))
 
     if request.method == 'POST':
         title = request.form['title']
         event_type = request.form['type']
         date = request.form['date']
-        time = request.form['time']  # Get the time from the form
+        time = request.form['time']
         location = request.form['location']
         description = request.form['description']
 
-        # Handle optional image update
+
         image = request.files.get('image')
         image_url = event['image_url']
-        if image and allowed_file(image.filename):
-            image_url = os.path.join(app.config['UPLOAD_FOLDER'], image.filename)
-            image.save(image_url)
 
-        # Update the event in the database, including the time field
-        execute_db(''' 
+        if image and allowed_file(image.filename):
+            image_filename = secure_filename(image.filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
+            image.save(image_path)
+            image_url = f'uploads/{image_filename}'
+
+            print(f"Image uploaded successfully: {image_url}")
+        else:
+            print("No new image uploaded. Retaining existing image.")
+
+        print(f"Updating event {event_id} with new image_url: {image_url}")
+
+        execute_db('''
             UPDATE events
             SET title = ?, type = ?, date = ?, time = ?, location = ?, description = ?, image_url = ?
             WHERE id = ? AND organizer_id = ?
@@ -266,20 +514,20 @@ def edit_event(event_id):
     return render_template('edit_event.html', event=event)
 
 
-
 @app.route('/manager/event/<int:event_id>/cancel', methods=['POST'])
 def cancel_event(event_id):
     if 'user_id' not in session or session.get('role') != 'event_manager':
         flash('Access denied.', 'danger')
-        return redirect(url_for('index'))
+        return redirect(url_for('home'))
 
     user_id = session['user_id']
-    event = query_db("SELECT * FROM events WHERE id = ? AND organizer_id = ?", (event_id, user_id), one=True)
+    event = query_db("SELECT * FROM events WHERE id = ? AND organizer_id = ?", [event_id, user_id], one=True)
+
     if not event:
         flash('Event not found or you do not have permission to cancel it.', 'danger')
         return redirect(url_for('manager_dashboard'))
 
-    execute_db("DELETE FROM events WHERE id = ? AND organizer_id = ?", (event_id, user_id))
+    execute_db("DELETE FROM events WHERE id = ? AND organizer_id = ?", [event_id, user_id])
     flash('Event canceled successfully.', 'success')
     return redirect(url_for('manager_dashboard'))
 
@@ -287,17 +535,39 @@ def cancel_event(event_id):
 @app.route('/signup/<int:event_id>', methods=['POST'])
 def signup(event_id):
     if 'user_id' not in session:
-        flash('Please log in to register for the event.', 'warning')
+        flash('You need to be logged in to sign up for an event', 'danger')
         return redirect(url_for('login'))
 
     user_id = session['user_id']
-    try:
-        execute_db("INSERT INTO signups (user_id, event_id) VALUES (?, ?)", (user_id, event_id))
-        flash('Successfully signed up for the event!', 'success')
-    except IntegrityError:
-        flash('You are already registered for this event.', 'info')
+    event = query_db("SELECT * FROM events WHERE id = ?", [event_id], one=True)
 
+    if not event:
+        flash('Event not found.', 'danger')
+        return redirect(url_for('home'))
+
+    event_date = datetime.strptime(event['date'], "%Y-%m-%d")
+    if event_date < datetime.now():
+        flash('You cannot sign up for past events.', 'danger')
+        return redirect(url_for('home'))
+
+    # Check if the user is already signed up for the event
+    existing_signup = query_db(
+        "SELECT * FROM signups WHERE user_id = ? AND event_id = ?",
+        [user_id, event_id],
+        one=True
+    )
+    if existing_signup:
+        flash('You are already signed up for this event.', 'info')
+        return redirect(url_for('event_detail', event_id=event_id))
+
+    execute_db('''
+        INSERT INTO signups (user_id, event_id)
+        VALUES (?, ?)
+    ''', (user_id, event_id))
+
+    flash('You have successfully signed up for the event!', 'success')
     return redirect(url_for('event_detail', event_id=event_id))
+
 
 
 @app.route('/event/<int:event_id>/cancel_signup', methods=['POST'])
@@ -308,7 +578,6 @@ def cancel_signup(event_id):
 
     user_id = session['user_id']
 
-    # Check if the user is signed up for the event
     is_signed_up = query_db(
         "SELECT * FROM signups WHERE user_id = ? AND event_id = ?",
         (user_id, event_id), one=True
@@ -321,7 +590,6 @@ def cancel_signup(event_id):
         flash('You are not signed up for this event.', 'danger')
         return redirect(url_for('event_detail', event_id=event_id))
 
-    # Remove the signup from the database
     execute_db(
         "DELETE FROM signups WHERE user_id = ? AND event_id = ?",
         (user_id, event_id)

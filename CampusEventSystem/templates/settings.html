@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<h1>Account Settings</h1>
+
+<!-- Feedback Messages -->
+{% if error %}
+    <p class="error" style="color: red;">{{ error }}</p>
+{% endif %}
+
+{% if success %}
+    <p class="success" style="color: green;">{{ success }}</p>
+{% endif %}
+
+<!-- Settings Form -->
+<form method="POST" action="{{ url_for('settings') }}" style="max-width: 600px; margin: 20px auto;">
+    <!-- Username -->
+    <div class="form-group">
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" value="{{ user.username }}" required>
+    </div>
+
+    <!-- Email -->
+    <div class="form-group">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" value="{{ user.email }}" required>
+    </div>
+
+    <!-- Password -->
+    <div class="form-group">
+        <label for="password">New Password:</label>
+        <input type="password" id="password" name="password" placeholder="Leave blank to keep current password">
+    </div>
+
+    <!-- Confirm Password -->
+    <div class="form-group">
+        <label for="confirm_password">Confirm Password:</label>
+        <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm new password">
+    </div>
+
+    <!-- Save Changes Button -->
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+</form>
+{% endblock %}
+

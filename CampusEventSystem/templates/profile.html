@@ -14,25 +14,45 @@
 
 <!-- Upcoming events the user is signed up for -->
 <h3>Events You're Signed Up For:</h3>
-<ul>
+<div class="event-container">
     {% for event in upcoming_events %}
-        <li>
-            <a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a> on {{ event.date }}
-        </li>
+    <div class="event-card">
+        <div class="event-details">
+            <img src="{{ url_for('static', filename=event.image_url if event.image_url else 'uploads/default_placeholder.jpg') }}" alt="{{ event.title }}">
+            <h2><a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a></h2>
+            <p><strong>Type:</strong> {{ event.type }}</p>
+            <p><strong>Date:</strong> {{ event.date }}</p>
+            <p><strong>Location:</strong> {{ event.location }}</p>
+            {% if event.tags %}
+                <p><strong>Tags:</strong> {{ event.tags }}</p>
+                <form method="POST" action="{{ url_for('cancel_signup', event_id=event.id) }}">
+                <button type="submit" class="btn btn-danger">Cancel Signup</button>
+            {% endif %}
+        </div>
+    </div>
     {% else %}
         <p>You are not signed up for any events.</p>
     {% endfor %}
-</ul>
+</div>
 
 <!-- All upcoming events -->
 <h3>All Upcoming Events:</h3>
-<ul>
+<div class="event-container">
     {% for event in all_upcoming_events %}
-        <li>
-            <a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a> on {{ event.date }}
-        </li>
+    <div class="event-card">
+        <div class="event-details">
+            <img src="{{ url_for('static', filename=event.image_url) if event.image_url else url_for('static', filename='uploads/default_placeholder.jpg') }}" alt="{{ event.title }}">
+            <h2><a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a></h2>
+            <p><strong>Type:</strong> {{ event.type }}</p>
+            <p><strong>Date:</strong> {{ event.date }}</p>
+            <p><strong>Location:</strong> {{ event.location }}</p>
+            {% if event.tags %}
+                <p><strong>Tags:</strong> {{ event.tags }}</p>
+            {% endif %}
+        </div>
+    </div>
     {% else %}
         <p>No upcoming events found.</p>
     {% endfor %}
-</ul>
+</div>
 {% endblock %}

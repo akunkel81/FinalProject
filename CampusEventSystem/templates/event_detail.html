@@ -3,27 +3,95 @@
 {% block title %}Event Details{% endblock %}
 
 {% block content %}
-<h1>{{ event['title'] }}</h1>
-    <img src="{{ url_for('static', filename=event.image_url) }}" alt="{{ event.title }}">
-    <p><strong>Type:</strong> {{ event['type'] }}</p>
-    <p><strong>Date:</strong> {{ event['date'] }}</p>
-    <p><strong>Time:</strong> {{ event['time'] }}</p>
-    <p><strong>Location:</strong> {{ event['location'] }}</p>
-    <p><strong>Description:</strong> {{ event['description'] }}</p>
+<!-- Include the specific style sheet for event details -->
+<link rel="stylesheet" href="{{ url_for('static', filename='styles_event_details.css') }}">
 
-<h2>Attendees: {{ attendees }}</h2>
+<div class="event-container">
+    <h1>{{ event['title'] }}</h1>
+    <img src="{{ url_for('static', filename=event.image_url if event.image_url else 'uploads/default_placeholder.jpg') }}" alt="{{ event.title }}">
 
-{% if session['user_id'] %}
-    {% if is_registered %}
-        <form method="POST" action="{{ url_for('cancel_signup', event_id=event['id']) }}">
-            <button type="submit">Cancel Signup</button>
-        </form>
-    {% else %}
-        <form method="POST" action="{{ url_for('signup', event_id=event['id']) }}">
-            <button type="submit">Sign Up</button>
-        </form>
-    {% endif %}
-{% else %}
-    <p><a href="{{ url_for('login') }}">Log in</a> to sign up for this event.</p>
-{% endif %}
+    <div class="event-details">
+        <h2>Event Type</h2>
+        <p>{{ event['type'] }}</p>
+
+        <h2>Date</h2>
+        <p>{{ event['date'] }}</p>
+
+        <h2>Time</h2>
+        <p>{{ event['time'] }}</p>
+
+        <h2>Organizer</h2>
+        <p>{{ event['organizer'] }}</p>
+
+        <h2>Location</h2>
+        <p>{{ event['location'] }}</p>
+
+        <!-- Google Maps Embed with API Key -->
+        <iframe
+          width="600"
+          height="450"
+          style="border:0;"
+          loading="lazy"
+          allowfullscreen
+          src="https://www.google.com/maps/embed/v1/place?key=AIzaSyDxUBBX1Pi4cAknbGTkEsmtTZ1UTCiYa5M&q={{ event['location']|urlencode }}&zoom=15">
+        </iframe>
+
+        <h2>Description</h2>
+        <p>{{ event['description'] }}</p>
+
+        <!-- Tags Section -->
+        {% if event['tags'] %}
+            <h2>Tags</h2>
+            <p>{{ event['tags'] }}</p>
+        {% endif %}
+
+        <h2>Attendees</h2>
+        <p>{{ attendees_count }} people have signed up for this event.</p>
+
+        {% if is_event_manager %}
+            <h3>List of Attendees:</h3>
+            <ul>
+                {% for attendee in attendees %}
+                    <li>{{ attendee.username }} ({{ attendee.email }})</li>
+                {% else %}
+                    <p>No attendees yet.</p>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <h3>Download Event</h3>
+        <p>Click the link below to add this event to your Google Calendar:</p>
+
+       <a href="https://www.google.com/calendar/render?action=TEMPLATE&text={{ event['title'] }}&dates={{ event['date']|replace('-', '') }}T{{ event['time']|replace(':', '') }}00/{{ event['date']|replace('-', '') }}T{{ event['time']|replace(':', '') }}00&details={{ event['description'] }}&location={{ event['location'] }}&sf=true&output=xml" target="_blank">
+        Add to Google Calendar
+        </a>
+
+
+        <div class="event-buttons">
+            {% if session['user_id'] %}
+                {% if is_registered %}
+                    <form method="POST" action="{{ url_for('cancel_signup', event_id=event['id']) }}">
+                        <button type="submit" class="btn-danger">Cancel Signup</button>
+                    </form>
+                {% else %}
+                    <!-- Check if the event is in the future -->
+                    {% set event_datetime = event['date'] + ' ' + event['time'] %}
+                    {% set current_datetime = current_date + ' ' + current_time %}
+                    {% if event_datetime > current_datetime %}
+                        <form method="POST" action="{{ url_for('signup', event_id=event['id']) }}">
+                            <button type="submit">Sign Up</button>
+                        </form>
+                    {% else %}
+                        <p class="sign-up-closed">Sign up is closed for past events.</p>
+                    {% endif %}
+                {% endif %}
+            {% else %}
+                <p><a href="{{ url_for('login') }}">Log in</a> to sign up for this event.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}
+
+
+

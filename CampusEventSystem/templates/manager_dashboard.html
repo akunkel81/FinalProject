@@ -5,32 +5,56 @@
 {% block content %}
 <h1>Manager Dashboard</h1>
 
-<a href="{{ url_for('create_event') }}" class="btn btn-primary">Create New Event</a>
+<a href="{{ url_for('create_event') }}" class="btn btn-create-event">Create New Event</a>
 
-<h2>Your Upcoming Events</h2>
-<ul>
-    {% for event in upcoming_events %}
-        <li>
-            <a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a>
-            on {{ event.date }}
-            <a href="{{ url_for('edit_event', event_id=event.id) }}" class="btn btn-secondary">Edit</a>
-            <form method="POST" action="{{ url_for('cancel_event', event_id=event.id) }}" style="display: inline;">
-                <button type="submit" class="btn btn-danger">Cancel</button>
-            </form>
-        </li>
-    {% else %}
+<h2>Your Created Events</h2>
+
+<!-- Batch cancel form -->
+<form method="POST" action="{{ url_for('batch_cancel_events') }}">
+    <button type="submit" class="btn btn-danger" style="margin-bottom: 10px;">Cancel Selected Events</button>
+
+    <div class="event-container">
+        {% for event in upcoming_events %}
+        <div class="event-card">
+            <div class="event-details">
+                <img src="{{ url_for('static', filename=event.image_url if event.image_url else 'uploads/default_placeholder.jpg') }}" alt="{{ event.title }}">
+
+                <h2><a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a></h2>
+                <p><strong>Type:</strong> {{ event.type }}</p>
+                <p><strong>Date:</strong> {{ event.date }}</p>
+                <p><strong>Location:</strong> {{ event.location }}</p>
+
+                <label>
+                    <input type="checkbox" name="event_ids" value="{{ event.id }}"> Select to Cancel
+                </label>
+
+                <a href="{{ url_for('edit_event', event_id=event.id) }}" class="btn btn-edit">Edit</a>
+                <form method="POST" action="{{ url_for('cancel_event', event_id=event.id) }}" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Cancel</button>
+                </form>
+            </div>
+        </div>
+        {% else %}
         <p>No upcoming events found.</p>
-    {% endfor %}
-</ul>
+        {% endfor %}
+    </div>
+</form>
 
 <h2>Your Past Events</h2>
-<ul>
+<div class="event-container">
     {% for event in past_events %}
-        <li>
-            <a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a> on {{ event.date }}
-        </li>
+    <div class="event-card">
+        <div class="event-details">
+            <!-- Use default image if event.image_url is None or empty -->
+            <img src="{{ url_for('static', filename=event.image_url if event.image_url else 'uploads/default_placeholder.jpg') }}" alt="{{ event.title }}">
+
+            <h2><a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a></h2>
+            <p><strong>Date:</strong> {{ event.date }}</p>
+        </div>
+    </div>
     {% else %}
         <p>No past events found.</p>
     {% endfor %}
-</ul>
+</div>
+
 {% endblock %}

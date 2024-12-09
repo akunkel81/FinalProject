@@ -11,24 +11,25 @@
     <header>
     <nav>
         <ul>
+            <li class="brand"><a href="{{ url_for('home') }}">Campus Events</a></li>
+
             <li><a href="{{ url_for('home') }}">Home</a></li>
+            <li><a href="{{ url_for('profile') }}">Profile</a></li>
+
+            {% if session.get('role') == 'event_manager' %}
+                <li><a href="{{ url_for('manager_dashboard') }}">Manager Dashboard</a></li>
+            {% endif %}
 
             {% if 'user_id' in session %}
-                <li><a href="{{ url_for('profile') }}">Profile</a></li>
-                {% if session.get('role') == 'event_manager' %}
-                    <li><a href="{{ url_for('manager_dashboard') }}">Manager Dashboard</a></li>
-                {% endif %}
-                <li><a href="{{ url_for('logout') }}">Logout</a></li>
-            {% else %}
-                <li><a href="{{ url_for('login') }}">Login</a></li>
-                <li><a href="{{ url_for('register') }}">Register</a></li>
+                <li><a href="{{ url_for('settings') }}">Settings</a></li>
             {% endif %}
+
+            <li><a href="{{ url_for('logout') }}">Logout</a></li>
         </ul>
     </nav>
     </header>
 
     <main>
-        <!-- Event List Section for All Pages -->
         <div class="event-list">
             {% block content %}{% endblock %}
         </div>

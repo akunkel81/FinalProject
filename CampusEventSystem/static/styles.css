@@ -133,6 +133,181 @@ button {
 button:hover {
     background-color: #0056b3;
 }
+.btn-edit {
+    background-color: #00ff48; /* Blue background similar to primary buttons */
+    color: white; /* White text */
+    border: none; /* Remove any default border */
+    padding: 10px 20px; /* Add padding for a larger button */
+    text-align: center; /* Align text in the center */
+    font-size: 16px; /* Set a font size */
+    border-radius: 5px; /* Optional: Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+    transition: background-color 0.3s ease; /* Smooth transition on hover */
+}
+
+/* Optional: Add hover effect for Edit button */
+.btn-edit:hover {
+    background-color: #18b300; /* Darker blue on hover */
+    text-decoration: none; /* Remove underline on hover */
+
+}
+
+/* Style for Create New Event Button */
+.btn-create-event {
+    background-color: #dc3545; /* Red background (similar to btn-danger) */
+    color: white; /* White text */
+    border: none; /* Remove any default border */
+    padding: 15px 30px; /* Larger padding for a bigger button */
+    font-size: 18px; /* Larger font size */
+    text-align: center; /* Center text */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+    display: inline-block; /* Allow inline display with other elements */
+    transition: background-color 0.3s ease; /* Smooth transition for background color on hover */
+}
+
+/* Optional: Hover effect for Create New Event button */
+.btn-create-event:hover {
+    background-color: #c82333; /* Darker red on hover */
+    text-decoration: none; /* Remove underline on hover */
+}
+
+.sign-up-closed {
+    color: #a71d2a;
+    font-weight: bold;
+    margin-top: 10px;
+}
+/* Section headers */
+h2 {
+    margin-top: 30px;
+    font-size: 1.8rem;
+    color: #333;
+}
+
+/* Event container */
+.event-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: flex-start;
+}
+
+/* Event card styling */
+.event-card {
+    width: 300px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.event-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.event-details {
+    padding: 15px;
+}
+
+.event-details h3 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+.sign-up-closed {
+    color: #a71d2a;
+    font-weight: bold;
+}
+
+/* Styles for red cancel signup button */
+.btn-danger {
+    background-color: #dc3545; /* Bootstrap red */
+    color: #fff; /* White text */
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn-danger:hover {
+    background-color: #c82333; /* Darker red for hover */
+}
+
+/* Manager Dashboard Buttons */
+.event-actions {
+    display: flex;
+    justify-content: space-between; /* Space out the buttons */
+    align-items: center;
+    margin-top: 10px; /* Add margin to create space from the content above */
+}
+
+.event-actions .btn {
+    margin-right: 10px; /* Add spacing between buttons */
+}
+
+/* Style for the edit button */
+.btn-edit {
+    background-color: #4CAF50;
+    color: white;
+    padding: 5px 10px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.btn-edit:hover {
+    background-color: #45a049;
+}
+
+/* Style for the cancel button */
+.btn-danger {
+    background-color: #f44336;
+    color: white;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.btn-danger:hover {
+    background-color: #da190b;
+}
+
+/* Style for the select checkbox */
+input[type="checkbox"] {
+    margin-right: 5px;
+}
+/* Add styles for the brand */
+nav ul {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+nav ul li {
+    margin-right: 15px;
+}
+
+nav ul li.brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+    margin-right: auto; /* Pushes the brand to the left */
+}
+
+nav ul li a {
+    text-decoration: none;
+    color: #000; /* Adjust color as needed */
+}
+
+nav ul li a:hover {
+    color: #007BFF; /* Add hover effect */
+}
 
 @media (max-width: 768px) {
     .event-container {

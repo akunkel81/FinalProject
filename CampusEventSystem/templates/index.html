@@ -3,32 +3,96 @@
 {% block title %}Home{% endblock %}
 
 {% block content %}
-<h1>Upcoming Events</h1>
+<h1>Events</h1>
 
+<!-- Search bar -->
 <form method="POST" action="{{ url_for('search') }}">
     <input type="text" name="keyword" placeholder="Search by title or tags..." required>
     <button type="submit">Search</button>
 </form>
 
+<!-- Filter Section -->
+<form method="POST" action="{{ url_for('home') }}">
+    <label for="type">Event Type:</label>
+    <select name="type" id="type">
+        <option value="">--Select Type--</option>
+        <option value="Career Fair" {% if filter_criteria['type'] == "Career Fair" %}selected{% endif %}>Career Fair</option>
+        <option value="Arts" {% if filter_criteria['type'] == "Arts" %}selected{% endif %}>Arts</option>
+        <option value="Celebration" {% if filter_criteria['type'] == "Celebration" %}selected{% endif %}>Celebration</option>
+    </select>
+
+    <label for="location">Location:</label>
+    <input type="text" name="location" id="location" placeholder="Enter location" value="{{ filter_criteria['location'] or '' }}">
+
+    <label for="date">Date:</label>
+    <input type="date" name="date" id="date" value="{{ filter_criteria['date'] or '' }}">
+
+    <button type="submit">Apply Filters</button>
+</form>
+
+<!-- Upcoming Events Section -->
+<h2>Upcoming Events</h2>
 <div class="event-container">
-    {% for event in events %}
+    {% for event in upcoming_events %}
     <div class="event-card">
+        <img src="{{ url_for('static', filename=event.image_url if event.image_url else 'uploads/default_placeholder.jpg') }}" alt="{{ event.title }}">
         <div class="event-details">
-           <img src="{{ url_for('static', filename=event.image_url) }}" alt="{{ event.title }}">
-            <h2><a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a></h2>
+            <h3><a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a></h3>
             <p><strong>Type:</strong> {{ event.type }}</p>
             <p><strong>Date:</strong> {{ event.date }}</p>
+            <p><strong>Time:</strong> {{ event.time }}</p>
             <p><strong>Location:</strong> {{ event.location }}</p>
-            {% if event.tags %}
-                <p><strong>Tags:</strong> {{ event.tags }}</p>
+            {% if session.get('user_id') %}
+                {% if event.tags %}
+                    <p><strong>Tags:</strong> {{ event.tags }}</p>
+                {% endif %}
             {% endif %}
-            <form method="POST" action="{{ url_for('signup', event_id=event.id) }}">
-                <button type="submit">Sign Up</button>
-            </form>
+            {% set event_datetime = event.date + ' ' + event.time %}
+            {% set current_datetime = current_date + ' ' + current_time %}
+            {% if event_datetime > current_datetime %}
+                <form method="POST" action="{{ url_for('signup', event_id=event.id) }}">
+                    <button type="submit" class="btn btn-primary">Sign Up</button>
+                </form>
+            {% else %}
+                <p class="sign-up-closed">Sign up is closed for past events.</p>
+            {% endif %}
         </div>
     </div>
     {% else %}
         <p>No upcoming events found.</p>
+    {% endfor %}
+</div>
+
+<!-- All Events Section -->
+<h2>All Events</h2>
+<div class="event-container">
+    {% for event in all_events %}
+    <div class="event-card">
+        <img src="{{ url_for('static', filename=event.image_url if event.image_url else 'uploads/default_placeholder.jpg') }}" alt="{{ event.title }}">
+        <div class="event-details">
+            <h3><a href="{{ url_for('event_detail', event_id=event.id) }}">{{ event.title }}</a></h3>
+            <p><strong>Type:</strong> {{ event.type }}</p>
+            <p><strong>Date:</strong> {{ event.date }}</p>
+            <p><strong>Time:</strong> {{ event.time }}</p>
+            <p><strong>Location:</strong> {{ event.location }}</p>
+            {% if session.get('user_id') %}
+                {% if event.tags %}
+                    <p><strong>Tags:</strong> {{ event.tags }}</p>
+                {% endif %}
+            {% endif %}
+            {% set event_datetime = event.date + ' ' + event.time %}
+            {% set current_datetime = current_date + ' ' + current_time %}
+            {% if event_datetime > current_datetime %}
+                <form method="POST" action="{{ url_for('signup', event_id=event.id) }}">
+                    <button type="submit" class="btn btn-primary">Sign Up</button>
+                </form>
+            {% else %}
+                <p class="sign-up-closed">Sign up is closed for past events.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+        <p>No events found.</p>
     {% endfor %}
 </div>
 {% endblock %}
