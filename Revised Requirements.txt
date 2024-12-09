@@ -1,0 +1,13 @@
+Our groups original "optional" requirements:
+  1) The system provide platforms other than web for user to interface with (i.e. Desktop, Mobile,
+  Command line, etc.) There should be no discrepancies regarding the functionalities of the system
+  between different platforms. (15%)
+  2) The system will provide a filter function on all event lists using event type, time, location, etc.
+
+Our groups revised "optional" requirements in the created system:
+  1)The event detail page provides the map information of the event location, (e.g. using map APIs)
+  2)The event detail page provide links to download the event as the calendar events, and links that
+  will create calendar events to at least one major calendar services (i.e. Outlook, Apple, Google,
+  etc.)
+  3)The event manager account allows batch event canceling.
+  4) The system will provide a filter function on all event lists using event type, time, location, etc
